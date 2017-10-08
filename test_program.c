@@ -47,6 +47,8 @@ int main(void)
 	Test_Histogram();
 	Test_GoldRush();
 
+	printf("\n");
+
 	return 0;
 }
 
