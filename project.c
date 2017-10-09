@@ -11,6 +11,328 @@
 /* comment at the top of each of the "helper" functions you define which clearly */
 /* describes their purpose, and which of the tasks they support. */
 
+#define SHEEP_TERMINATOR 9999
+#define SHEEP_IGNORE -1
+#define PRIME_CACHE_SIZE 1000000
+#define COMPRESSION_TERMINATOR -1
+#define GOLD 9
+#define PADDED_SIZE MAX_ARRAY_SIZE + 2
+#define PADGET(sets, r, c) ((sets)[(r)+1][(c)+1])
+
+
+/* Computes the GCD of two positive integers using the Euclidean algorithm */
+/* in recursive form.                                                      */
+/* Used in: DivisorOfThree()                                               */
+int Gcd(int x, int y)
+{
+	// Stopping condition:
+	if (y == 0)
+	{
+		return x;
+	}
+
+	// Swap places
+	return Gcd(y, x % y);
+}
+
+/* Simple check to see if character is a lowercase alphabetic character */
+/* Used in: Emphasise()                                                 */
+int IsLowerAlphabetic(char c)
+{
+	return 'a' <= c && c <= 'z';
+}
+
+/* Uses the numeric difference between 'a' and 'A' to shift lowercase */
+/* letters to uppercase.                                              */
+/* Used in: Emphasise()                                               */
+char ToUpperCase(char c)
+{
+	if (!IsLowerAlphabetic(c))
+	{
+		return c;
+	}
+	return c - 'a' + 'A';
+}
+
+/* Naively checks if integer p >= 2 is a prime by checking if it is */
+/* by any number less than its square.                              */
+/* Used in: PrimeFactors()                                          */
+int IsPrimeNaive(int p)
+{
+	int x = 2;
+	while (x * x <= p)
+	{
+		if (p % x == 0)
+		{
+			return 0;
+		}
+		x++;
+	}
+	return 1;
+}
+
+/* Checks if p is prime using seive of Eratosthenes. Note: assumes that */
+/* every prime below p has been previously checked using this function. */
+/* Used in: PrimeFactors()                                              */
+int IsPrimeSeive(int p, int * isComposite)
+{
+	if (isComposite[p])
+	{
+		return 0;
+	}
+
+	// Mark all composite numbers using multiples of this prime
+	for (int c = 2 * p; c < PRIME_CACHE_SIZE; c += p)
+	{
+		isComposite[c] = 1;
+	}
+	return 1;
+}
+
+/* Generalised prime checker, that uses the seive of Eratosthenes if */
+/* possible, unless prime is outside the isComposite array size.     */
+/* Used in: PrimeFactors()                                           */
+int IsPrime(int p, int * isComposite)
+{
+	if (p >= PRIME_CACHE_SIZE)
+	{
+		return IsPrimeNaive(p);
+	}
+	return IsPrimeSeive(p, isComposite);
+}
+
+/* Simple function calculates sign of an integer */
+/* Used in: ConnectTwo()                         */
+int Signum(int x)
+{
+	if (x > 0) return 1;
+	if (x < 0) return -1;
+	return 0;
+}
+
+/* Hides implementation to check whether cell contains gold */
+/* Used in: GoldRush()                                      */
+int IsGold(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
+{
+	return map[r][c] == GOLD;
+}
+
+/* Hides implementation to check if cell contains pure gold*/
+/* Used in: GoldRush()                                     */
+int IsPure(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
+{
+	for (int dr = -1; dr <= 1; dr++)
+	{
+		for (int dc = -1; dc <= 1; dc++)
+		{
+			if (map[r+dr][c+dc] != GOLD)
+			{
+				return 0;
+			}
+		}
+	}
+	return 1;
+}
+
+void GoldRush0(int * results, int rows, int cols,
+		int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
+{
+	results[0] = 0;
+	results[1] = 0;
+
+	for (int r = 0; r < rows; r++)
+	{
+		for (int c = 0; c < cols; c++)
+		{
+			results[0] += IsGold(r, c, map);
+		}
+	}
+
+	for (int r = 1; r < rows - 1; r++)
+	{
+		for (int c = 1; c < cols - 1; c++)
+		{
+			results[1] += IsPure(r, c, map);
+		}
+	}
+}
+
+typedef struct DisjointSet DisjointSet;
+
+struct DisjointSet
+{
+	DisjointSet * parent;
+	int rank;
+	int goldCount;
+	int seen;
+	int isSpecial;
+};
+
+void SetInit(DisjointSet * set)
+{
+	set->parent = set;
+	set->rank = 0;
+
+	// Each set initially represents a single disjoint cell of one gold
+	set->goldCount = 1;
+
+	// "seen" is used when creating the array of region sizes
+	// to avoid duplicates in the array
+	set->seen = 0;
+
+	set->isSpecial = 1;
+}
+
+void SetSwap(DisjointSet ** setA, DisjointSet ** setB)
+{
+	DisjointSet * setTemp = *setA;
+	*setA = *setB;
+	*setB = setTemp;
+}
+
+DisjointSet * SetFind(DisjointSet * set)
+{
+	if (set->parent != set)
+	{
+		set->parent = SetFind(set->parent);
+	}
+	return set->parent;
+}
+
+void SetMerge(DisjointSet * setA, DisjointSet * setB)
+{
+	DisjointSet * rootA = SetFind(setA);
+	DisjointSet * rootB = SetFind(setB);
+
+	// Don't merge twice
+	if (rootA == rootB) return;
+
+	// Make sure rank of A is < rank of B
+	if (rootB->rank < rootA->rank)
+	{
+		SetSwap(&rootA, &rootB);
+	}
+
+	// That way, the smaller set is attached to larger
+	rootA->parent = rootB;
+
+	// Update their ranks
+	if (rootA->rank == rootB->rank)
+	{
+		rootB->rank = rootA->rank + 1;
+	}
+
+	// Combine the gold count and update the new root
+	rootB->goldCount += rootA->goldCount;
+}
+
+void ConnectCell(int r, int c, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
+{
+	// Only consider special cells that had been initialized
+	if (!PADGET(sets,r,c).isSpecial) return;
+
+	for (int dr = -1; dr <= 0; dr++)
+	{
+		for (int dc = -1; dc <= 1; dc++)
+		{
+			if (dr == 0 && dc == 0) continue;
+
+			int r2 = r + dr;
+			int c2 = c + dc;
+
+			if (PADGET(sets,r2,c2).isSpecial)
+			{
+				SetMerge(&PADGET(sets,r,c), &PADGET(sets,r2,c2));
+			}
+		}
+	}
+}
+
+void IntSwap(int * a, int * b)
+{
+	int temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+void QuickSort(int * array, int size)
+{
+	if (size <= 1) return;
+
+	int * left = array;
+	int * right = array + size - 1;
+	int * pivot = right;
+
+	// Partition
+	while (1)
+	{
+		while (*left < *pivot && left < right) left++;
+		while (*right > *pivot && left < right) right--;
+		if (left >= right) break;
+		IntSwap(left, right);
+	}
+
+	QuickSort(array, pivot - array);
+	QuickSort(pivot + 1, array + size - (pivot + 1));
+}
+
+void GoldRush12(int * results, int rows, int cols,
+		int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
+{
+	DisjointSet sets[PADDED_SIZE][PADDED_SIZE] = { 0 };
+
+	// Determine which cells are special
+	if (bonus == 1)
+	{
+		for (int r = 0; r < rows; r++)
+		{
+			for (int c = 0; c < cols; c++)
+			{
+				if (IsGold(r, c, map)) SetInit(&PADGET(sets,r,c));
+			}
+		}
+	}
+	else
+	{
+		for (int r = 1; r < rows - 1; r++)
+		{
+			for (int c = 1; c < cols - 1; c++)
+			{
+				if (IsPure(r, c, map)) SetInit(&PADGET(sets,r,c));
+			}
+		}
+	}
+
+	// Connect connected regions
+	for (int r = 0; r < rows; r++)
+	{
+		for (int c = 0; c < cols; c++)
+		{
+			ConnectCell(r, c, sets);
+		}
+	}
+
+	// Extract regions into results array
+	int regionCount = 0;
+	for (int r = 0; r < rows; r++)
+	{
+		for (int c = 0; c < cols; c++)
+		{
+			DisjointSet * root = SetFind(&PADGET(sets,r,c));
+			if (root->seen)
+			{
+				continue;
+			}
+			root->seen = 1;
+
+			results[regionCount] = root->goldCount;
+			regionCount++;
+		}
+	}
+
+	QuickSort(results, regionCount);
+}
+
 
 /* REQUIRED FUNCTIONS */
 /* Implement each of the required functions below.  The code that is provided initially */
@@ -19,63 +341,288 @@
 /* Your comment goes here*/
 int DivisorOfThree(int a, int b, int c)
 {
-	return a + b - c + 99999;
+	// Special case
+	if (a <= 0 || b <= 0 || c <= 0)
+	{
+		return -1;
+	}
+
+	return Gcd(a, Gcd(b, c));
 }
 
 /* Your comment goes here*/
-double AverageSheep(int *counts)
+double AverageSheep(int * counts)
 {
-	return counts[0] + 99999.9;
+	double sum = 0.0;
+	int validCount = 0;
+	while (*counts != SHEEP_TERMINATOR)
+	{
+		if (*counts != SHEEP_IGNORE)
+		{
+			sum += *counts;
+			validCount++;
+		}
+		counts++;
+	}
+	return sum / validCount;
 }
 
 /* Your comment goes here*/
-void Emphasise(char* word)
+void Emphasise(char * word)
 {
-	word[0] = '~';
+	// abcd_efg_hijk
+	//   ^
+	while (*word && *word != '_')
+	{
+		word++;
+	}
+
+	// abcd_efg_hijk
+	//     ^
+	word++;
+	// abcd_efg_hijk
+	//      ^
+
+	while (*word && *word != '_')
+	{
+		*(word - 1) = ToUpperCase(*word);
+		word++;
+	}
+
+	// abcdEFGg_hijk
+	//         ^
+	word++;
+	// abcdEFGg_hijk
+	//          ^
+ 
+	while (*word)
+	{
+		*(word - 2) = *word;
+		word++;
+	}
+
+	// abcdEFGhijkjk
+	//              ^
+	*(word - 2) = '\0';
+	// abcdEFGhijk
+	//              ^
 }
 
 /* Your comment goes here*/
-int PrimeFactors(int n, int *factors)
+int PrimeFactors(int n, int * factors)
 {
-	factors[0] = 0;
-	return 99997 + n;
+	int factorCount = 0;
+	int isComposite[PRIME_CACHE_SIZE] = { 0 };
+	for (int p = 2; p <= n; p++)
+	{
+		if (IsPrime(p, isComposite))
+		{
+			while (n % p == 0)
+			{
+				n /= p;
+				factors[factorCount] = p;
+				factorCount++;
+			}
+		}
+	}
+	return factorCount;
 }
 
 /* Your comment goes here*/
 void ConnectTwo(int maze[10][10])
 {
-	maze[0][0] = 99999;
+	int r1 = -1;
+	int c1 = -1;
+	int r2 = -1;
+	int c2 = -1;
+
+	for (int r = 0; r < 10; r++)
+	{
+		for (int c = 0; c < 10; c++)
+		{
+			switch (maze[r][c])
+			{
+			case 1:
+				r1 = r;
+				c1 = c;
+				break;
+			case 2:
+				r2 = r;
+				c2 = c;
+				break;
+			}
+		}
+	}
+
+	int directionRow = Signum(r2 - r1);
+	int directionCol = Signum(c2 - c1);
+
+	int r = r1;
+	int c = c1;
+
+	while (r + directionRow != r2 && c + directionCol != c2)
+	{
+		r += directionRow;
+		c += directionCol;
+		maze[r][c] = 3;
+	}
+
+	r += directionRow;
+	c += directionCol;
+	directionRow = Signum(r2 - r);
+	directionCol = Signum(c2 - c);
+
+	while (r != r2 || c != c2)
+	{
+		maze[r][c] = 3;
+		r += directionRow;
+		c += directionCol;
+	}
 }
 
 /* Your comment goes here*/
-void DayTrader(int *prices, int numPrices, int *bestRun, int *bestRunIndex)
+void DayTrader(int * prices, int numPrices, int * bestRun, int * bestRunIndex)
 {
-	*bestRun = 99999 + prices[0];
-	*bestRunIndex = 99999 + numPrices;
+	*bestRun = -1;
+	int currentRunIndex = 0;
+	for (int i = 1; i <= numPrices; i++)
+	{
+		if (i == numPrices || prices[i] <= prices[i - 1])
+		{
+			int currentRun = i - currentRunIndex - 1;
+			if (*bestRun < currentRun)
+			{
+				*bestRun = currentRun;
+				*bestRunIndex = currentRunIndex;
+			}
+			currentRunIndex = i;
+		}
+	}
 }
 
 /* Your comment goes here*/
-void Compress(int *input, int *output)
+void Compress(int * input, int * output)
 {
-	output[0] = 99999 + input[0];
+	while (*input != COMPRESSION_TERMINATOR)
+	{
+		int data = *input;
+		int count = 0;
+		while (*input == data)
+		{
+			count++;
+			input++;
+		}
+		output[0] = count;
+		output[1] = data;
+		output += 2;
+	}
+	*output = COMPRESSION_TERMINATOR;
 }
 
 /* Your comment goes here*/
-void AddOne(char *input, char *output)
+void AddOne(char * input, char * output)
 {
-	input[0] = '1';
-	output[0] = '~';
+	int digitCount = 0;
+	int isAllNines = 1;
+	while (input[digitCount])
+	{
+		isAllNines = isAllNines && input[digitCount] == '9';
+		digitCount++;
+	}
+
+	if (isAllNines)
+	{
+		output[0] = '1';
+		for (int i = 1; i <= digitCount; i++)
+		{
+			output[i] = '0';
+		}
+		output[digitCount + 1] = '\0';
+		return;
+	}
+
+	int carry = 0;
+	input[digitCount - 1]++;
+	for (int i = digitCount - 1; i >= 0; i--)
+	{
+		output[i] = input[i] + carry;
+		carry = 0;
+		if (output[i] > '9')
+		{
+			output[i] -= 10;
+			carry = 1;
+		}
+	}
+	output[digitCount + 1] = '\0';
 }
 
 /* Your comment goes here*/
-void Histogram(char *result, int *values, int numValues)
+void Histogram(char * result, int * values, int numValues)
 {
-	result[0] = (char)('~' + numValues + values[0]);
+	int max = 0;
+	for (int i = 0; i < numValues; i++)
+	{
+		if (values[i] > max)
+		{
+			max = values[i];
+		}
+	}
+
+	for (int i = 0; i < numValues + 2; i++)
+	{
+		*result = '*';
+		result++;
+	}
+
+	*result = '\n';
+	result++;
+
+	for (int r = 0; r < max; r++)
+	{
+		*result = '*';
+		result++;
+		int currentHeight = max - r;
+		for (int i = 0; i < numValues; i++)
+		{
+			if (values[i] >= currentHeight)
+			{
+				*result = 'X';
+			}
+			else
+			{
+				*result = ' ';
+			}
+			result++;
+		}
+		*result = '*';
+		result++;
+		*result = '\n';
+		result++;
+	}
+
+	for (int i = 0; i < numValues + 2; i++)
+	{
+		*result = '*';
+		result++;
+	}
+	*result = '\0';
 }
 
 /* Your comment goes here*/
-void GoldRush(int *results, int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
+void GoldRush(int * results, int rows, int cols,
+		int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
 {
-	results[0] = 99993 + rows + cols + map[0][0] + bonus;
+	switch (bonus)
+	{
+	case 0:
+		GoldRush0(results, rows, cols, map);
+		break;
+	case 1:
+	case 2:
+		GoldRush12(results, rows, cols, map, bonus);
+		break;
+	default:
+		results[0] = 99993 + rows + cols + map[0][0] + bonus;
+		break;
+	}
 }
-
