@@ -13,7 +13,7 @@
 
 #define SHEEP_TERMINATOR 9999
 #define SHEEP_IGNORE -1
-#define PRIME_CACHE_SIZE 1000000
+#define PRIME_CACHE_SIZE 1/*1000000*/
 #define COMPRESSION_TERMINATOR -1
 #define GOLD 9
 #define PADDED_SIZE MAX_ARRAY_SIZE + 2
@@ -541,7 +541,7 @@ void AddOne(char * input, char * output)
 		return;
 	}
 
-	int carry = 0;
+	char carry = 0;
 	input[digitCount - 1]++;
 	for (int i = digitCount - 1; i >= 0; i--)
 	{
@@ -553,7 +553,7 @@ void AddOne(char * input, char * output)
 			carry = 1;
 		}
 	}
-	output[digitCount + 1] = '\0';
+	output[digitCount] = '\0';
 }
 
 /* Your comment goes here*/

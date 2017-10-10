@@ -1,0 +1,6 @@
+*.obj
+test
+project.exe
+
+.vs/
+Debug/
