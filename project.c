@@ -163,9 +163,9 @@ struct DisjointSet
 	int rank;
 	int goldCount;
 	int seen;
-	int isSpecial;
 };
 
+// Initialize a gold cell
 void SetInit(DisjointSet * set)
 {
 	set->parent = set;
@@ -177,8 +177,6 @@ void SetInit(DisjointSet * set)
 	// "seen" is used when creating the array of region sizes
 	// to avoid duplicates in the array
 	set->seen = 0;
-
-	set->isSpecial = 1;
 }
 
 void SetSwap(DisjointSet ** setA, DisjointSet ** setB)
@@ -226,8 +224,9 @@ void SetMerge(DisjointSet * setA, DisjointSet * setB)
 
 void ConnectCell(int r, int c, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 {
-	// Only consider special cells that had been initialized
-	if (!PADGET(sets,r,c).isSpecial) return;
+	// Only consider cells with desired gold type
+	// Only those are initialized
+	if (!PADGET(sets,r,c).goldCount) return;
 
 	for (int dr = -1; dr <= 0; dr++)
 	{
@@ -238,7 +237,7 @@ void ConnectCell(int r, int c, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 			int r2 = r + dr;
 			int c2 = c + dc;
 
-			if (PADGET(sets,r2,c2).isSpecial)
+			if (PADGET(sets,r2,c2).goldCount)
 			{
 				SetMerge(&PADGET(sets,r,c), &PADGET(sets,r2,c2));
 			}
