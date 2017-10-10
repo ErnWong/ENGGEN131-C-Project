@@ -13,7 +13,6 @@
 
 #define SHEEP_TERMINATOR 9999
 #define SHEEP_IGNORE -1
-#define PRIME_CACHE_SIZE 1/*1000000*/
 #define COMPRESSION_TERMINATOR -1
 #define GOLD 9
 #define PADDED_SIZE MAX_ARRAY_SIZE + 2
@@ -52,53 +51,6 @@ char ToUpperCase(char c)
 		return c;
 	}
 	return c - 'a' + 'A';
-}
-
-/* Naively checks if integer p >= 2 is a prime by checking if it is */
-/* by any number less than its square.                              */
-/* Used in: PrimeFactors()                                          */
-int IsPrimeNaive(int p)
-{
-	int x = 2;
-	while (x * x <= p)
-	{
-		if (p % x == 0)
-		{
-			return 0;
-		}
-		x++;
-	}
-	return 1;
-}
-
-/* Checks if p is prime using seive of Eratosthenes. Note: assumes that */
-/* every prime below p has been previously checked using this function. */
-/* Used in: PrimeFactors()                                              */
-int IsPrimeSeive(int p, int * isComposite)
-{
-	if (isComposite[p])
-	{
-		return 0;
-	}
-
-	// Mark all composite numbers using multiples of this prime
-	for (int c = 2 * p; c < PRIME_CACHE_SIZE; c += p)
-	{
-		isComposite[c] = 1;
-	}
-	return 1;
-}
-
-/* Generalised prime checker, that uses the seive of Eratosthenes if */
-/* possible, unless prime is outside the isComposite array size.     */
-/* Used in: PrimeFactors()                                           */
-int IsPrime(int p, int * isComposite)
-{
-	if (p >= PRIME_CACHE_SIZE)
-	{
-		return IsPrimeNaive(p);
-	}
-	return IsPrimeSeive(p, isComposite);
 }
 
 /* Simple function calculates sign of an integer */
@@ -394,7 +346,7 @@ void Emphasise(char * word)
 	word++;
 	// abcdEFGg_hijk
 	//          ^
- 
+
 	while (*word)
 	{
 		*(word - 2) = *word;
@@ -412,17 +364,13 @@ void Emphasise(char * word)
 int PrimeFactors(int n, int * factors)
 {
 	int factorCount = 0;
-	int isComposite[PRIME_CACHE_SIZE] = { 0 };
 	for (int p = 2; p <= n; p++)
 	{
-		if (IsPrime(p, isComposite))
+		while (n % p == 0)
 		{
-			while (n % p == 0)
-			{
-				n /= p;
-				factors[factorCount] = p;
-				factorCount++;
-			}
+			n /= p;
+			factors[factorCount] = p;
+			factorCount++;
 		}
 	}
 	return factorCount;
