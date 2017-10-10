@@ -13,6 +13,7 @@
 
 #define SHEEP_TERMINATOR 9999
 #define SHEEP_IGNORE -1
+#define MAZE_SIZE 10
 #define COMPRESSION_TERMINATOR -1
 #define GOLD 9
 #define PADDED_SIZE MAX_ARRAY_SIZE + 2
@@ -53,6 +54,28 @@ char ToUpperCase(char c)
 	return c - 'a' + 'A';
 }
 
+void MazeInitLocations(int maze[MAZE_SIZE][MAZE_SIZE], int * r1, int * c1,
+		int * r2, int * c2)
+{
+	for (int r = 0; r < MAZE_SIZE; r++)
+	{
+		for (int c = 0; c < MAZE_SIZE; c++)
+		{
+			switch (maze[r][c])
+			{
+			case 1:
+				*r1 = r;
+				*c1 = c;
+				break;
+			case 2:
+				*r2 = r;
+				*c2 = c;
+				break;
+			}
+		}
+	}
+}
+
 /* Simple function calculates sign of an integer */
 /* Used in: ConnectTwo()                         */
 int Signum(int x)
@@ -60,6 +83,29 @@ int Signum(int x)
 	if (x > 0) return 1;
 	if (x < 0) return -1;
 	return 0;
+}
+
+int IntMax(int * values, int size)
+{
+	int max = 0;
+	for (int i = 0; i < size; i++)
+	{
+		if (values[i] > max)
+		{
+			max = values[i];
+		}
+	}
+	return max;
+}
+
+char * CharRepeat(char * string, char c, int count)
+{
+	for (int i = 0; i < count; i++)
+	{
+		*string = c;
+		string++;
+	}
+	return string;
 }
 
 /* Hides implementation to check whether cell contains gold */
@@ -228,12 +274,9 @@ void QuickSort(int * array, int size)
 	QuickSort(pivot + 1, array + size - (pivot + 1));
 }
 
-void GoldRush12(int * results, int rows, int cols,
-		int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
+void GoldRushInitSets(DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
+		int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
 {
-	DisjointSet sets[PADDED_SIZE][PADDED_SIZE] = { 0 };
-
-	// Determine which cells are special
 	if (bonus == 1)
 	{
 		for (int r = 0; r < rows; r++)
@@ -254,6 +297,33 @@ void GoldRush12(int * results, int rows, int cols,
 			}
 		}
 	}
+}
+
+int ExtractRegions(int * results, DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
+		int rows, int cols)
+{
+	int regionCount = 0;
+	for (int r = 0; r < rows; r++)
+	{
+		for (int c = 0; c < cols; c++)
+		{
+			DisjointSet * root = SetFind(&PADGET(sets,r,c));
+			if (root->seen) continue;
+			root->seen = 1;
+
+			results[regionCount] = root->goldCount;
+			regionCount++;
+		}
+	}
+	return regionCount;
+}
+
+void GoldRush12(int * results, int rows, int cols,
+		int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
+{
+	DisjointSet sets[PADDED_SIZE][PADDED_SIZE] = { 0 };
+
+	GoldRushInitSets(sets, rows, cols, map, bonus);
 
 	// Connect connected regions
 	for (int r = 0; r < rows; r++)
@@ -264,24 +334,7 @@ void GoldRush12(int * results, int rows, int cols,
 		}
 	}
 
-	// Extract regions into results array
-	int regionCount = 0;
-	for (int r = 0; r < rows; r++)
-	{
-		for (int c = 0; c < cols; c++)
-		{
-			DisjointSet * root = SetFind(&PADGET(sets,r,c));
-			if (root->seen)
-			{
-				continue;
-			}
-			root->seen = 1;
-
-			results[regionCount] = root->goldCount;
-			regionCount++;
-		}
-	}
-
+	int regionCount = ExtractRegions(results, sets, rows, cols);
 	QuickSort(results, regionCount);
 }
 
@@ -377,30 +430,14 @@ int PrimeFactors(int n, int * factors)
 }
 
 /* Your comment goes here*/
-void ConnectTwo(int maze[10][10])
+void ConnectTwo(int maze[MAZE_SIZE][MAZE_SIZE])
 {
 	int r1 = -1;
 	int c1 = -1;
 	int r2 = -1;
 	int c2 = -1;
 
-	for (int r = 0; r < 10; r++)
-	{
-		for (int c = 0; c < 10; c++)
-		{
-			switch (maze[r][c])
-			{
-			case 1:
-				r1 = r;
-				c1 = c;
-				break;
-			case 2:
-				r2 = r;
-				c2 = c;
-				break;
-			}
-		}
-	}
+	MazeInitLocations(maze, &r1, &c1, &r2, &c2);
 
 	int directionRow = Signum(r2 - r1);
 	int directionCol = Signum(c2 - c1);
@@ -507,20 +544,9 @@ void AddOne(char * input, char * output)
 /* Your comment goes here*/
 void Histogram(char * result, int * values, int numValues)
 {
-	int max = 0;
-	for (int i = 0; i < numValues; i++)
-	{
-		if (values[i] > max)
-		{
-			max = values[i];
-		}
-	}
+	int max = IntMax(values, numValues);
 
-	for (int i = 0; i < numValues + 2; i++)
-	{
-		*result = '*';
-		result++;
-	}
+	result = CharRepeat(result, '*', numValues + 2);
 
 	*result = '\n';
 	result++;
@@ -548,11 +574,7 @@ void Histogram(char * result, int * values, int numValues)
 		result++;
 	}
 
-	for (int i = 0; i < numValues + 2; i++)
-	{
-		*result = '*';
-		result++;
-	}
+	result = CharRepeat(result, '*', numValues + 2);
 	*result = '\0';
 }
 
