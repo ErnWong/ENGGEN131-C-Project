@@ -25,13 +25,7 @@
 /* Used in: DivisorOfThree()                                               */
 int Gcd(int x, int y)
 {
-	// Stopping condition:
-	if (y == 0)
-	{
-		return x;
-	}
-
-	// Swap places
+	if (y == 0) return x;
 	return Gcd(y, x % y);
 }
 
@@ -47,10 +41,7 @@ int IsLowerAlphabetic(char c)
 /* Used in: Emphasise()                                               */
 char ToUpperCase(char c)
 {
-	if (!IsLowerAlphabetic(c))
-	{
-		return c;
-	}
+	if (!IsLowerAlphabetic(c)) return c;
 	return c - 'a' + 'A';
 }
 
@@ -345,12 +336,7 @@ void GoldRush12(int * results, int rows, int cols,
 /* Your comment goes here*/
 int DivisorOfThree(int a, int b, int c)
 {
-	// Special case
-	if (a <= 0 || b <= 0 || c <= 0)
-	{
-		return -1;
-	}
-
+	if (a <= 0 || b <= 0 || c <= 0) return -1;
 	return Gcd(a, Gcd(b, c));
 }
 
@@ -376,10 +362,7 @@ void Emphasise(char * word)
 {
 	// abcd_efg_hijk
 	//   ^
-	while (*word && *word != '_')
-	{
-		word++;
-	}
+	while (*word && *word != '_') word++;
 
 	// abcd_efg_hijk
 	//     ^
@@ -490,13 +473,11 @@ void Compress(int * input, int * output)
 	while (*input != COMPRESSION_TERMINATOR)
 	{
 		int data = *input;
-		int count = 0;
-		while (*input == data)
-		{
-			count++;
-			input++;
-		}
-		output[0] = count;
+		int * start = input;
+
+		while (*input == data) input++;
+
+		output[0] = input - start;
 		output[1] = data;
 		output += 2;
 	}
@@ -557,14 +538,8 @@ void Histogram(char * result, int * values, int numValues)
 		int currentHeight = max - r;
 		for (int i = 0; i < numValues; i++)
 		{
-			if (values[i] >= currentHeight)
-			{
-				*result = 'X';
-			}
-			else
-			{
-				*result = ' ';
-			}
+			if (values[i] >= currentHeight) *result = 'X';
+			else *result = ' ';
 			result++;
 		}
 		*result = '*';
