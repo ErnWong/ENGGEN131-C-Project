@@ -258,6 +258,8 @@ void QuickSort(int * array, int size)
 		while (*right > *pivot && left < right) right--;
 		if (left >= right) break;
 		IntSwap(left, right);
+		if (pivot == left) pivot = right;
+		if (pivot == right) pivot = left;
 	}
 
 	QuickSort(array, pivot - array);
