@@ -78,13 +78,10 @@ int Signum(int x)
 
 int IntMax(int * values, int size)
 {
-	int max = 0;
-	for (int i = 0; i < size; i++)
+	int max = values[0];
+	for (int i = 1; i < size; i++)
 	{
-		if (values[i] > max)
-		{
-			max = values[i];
-		}
+		if (values[i] > max) max = values[i];
 	}
 	return max;
 }
@@ -452,7 +449,7 @@ void ConnectTwo(int maze[MAZE_SIZE][MAZE_SIZE])
 /* Your comment goes here*/
 void DayTrader(int * prices, int numPrices, int * bestRun, int * bestRunIndex)
 {
-	*bestRun = -1;
+	*bestRun = 0;
 	int currentRunIndex = 0;
 	for (int i = 1; i <= numPrices; i++)
 	{
