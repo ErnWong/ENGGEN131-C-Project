@@ -1,10 +1,13 @@
 /* ENGGEN131, Semester Two, 2017 */
-
 /* PROJECT SOLUTION BY: Ernest Wong <ewon746> */
+
 
 #include "project.h"
 
+
 /* MAGIC NUMBERS */
+
+
 #define SHEEP_TERMINATOR 9999
 #define SHEEP_IGNORE -1
 #define MAZE_SIZE 10
@@ -18,11 +21,6 @@
 
 
 /* HELPER FUNCTIONS */
-/* If you have defined any "helper" functions, which you call from the required */
-/* functions, you should place them here, at the top of the source file.  This will */
-/* make it easier for the markers to locate them.  You should also include a */
-/* comment at the top of each of the "helper" functions you define which clearly */
-/* describes their purpose, and which of the tasks they support. */
 
 
 /*
@@ -84,6 +82,9 @@ char ToUpperCase(char c)
  * Tasks: (5) Connect Two.
  *
  * Implementation: a simple linear search.
+ * By looping through all possible coordinates, the contents of the
+ * 2d int array `maze` at the coordinates is checked for the appropriate
+ * values. When found, the appropriate variables are set.
  */
 void MazeInitLocations(int maze[MAZE_SIZE][MAZE_SIZE], int * r1, int * c1,
 		int * r2, int * c2)
@@ -94,14 +95,14 @@ void MazeInitLocations(int maze[MAZE_SIZE][MAZE_SIZE], int * r1, int * c1,
 		{
 			switch (maze[r][c])
 			{
-			case 1:
-				*r1 = r;
-				*c1 = c;
-				break;
-			case 2:
-				*r2 = r;
-				*c2 = c;
-				break;
+				case 1:
+					*r1 = r;
+					*c1 = c;
+					break;
+				case 2:
+					*r2 = r;
+					*c2 = c;
+					break;
 			}
 		}
 	}
@@ -147,7 +148,8 @@ int IntMax(int * values, int size)
  *
  * Implementation: A simple loop to iterate given number of times. The
  * position in the string is remembered and incremented using
- * pointer arithmetic.
+ * pointer arithmetic, so every iteration through the loop, the character
+ * `c` is assigned to an incremented position each time.
  */
 char * CharRepeat(char * string, char c, int count)
 {
@@ -179,7 +181,9 @@ int IsGold(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
  *
  * Implementation: Simple linear loop, and returns early upon
  * detecting the first non-gold neighbour/cell. Note that its
- * own cell is also checked in the process.
+ * own cell is also checked in the process. The only way it can
+ * return truthy is for all of the 8 neighbouring cells to have
+ * the value GOLD.
  */
 int IsPure(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
 {
@@ -210,7 +214,8 @@ int IsPure(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
  * the node.
  *
  * Note in terminology:
- *   A DisjointSet structure = a mining map cell = a node in the jungle.
+ *   A single DisjointSet structure = a mining map cell = a node in the jungle.
+ *   A jungle = a collection of trees formed by the nodes.
  *
  * The .goldCount property keeps track of the amount of cells in the
  * associated region. Note: it is only accurate for the top-most nodes.
@@ -262,6 +267,12 @@ void SetSwap(DisjointSet ** setA, DisjointSet ** setB)
  * directly points to the top-most parent.
  *
  * Base case: the top-most parent itself, which is pointing to itself.
+ *
+ * Eventually, the SetFind calls reach the top-most root node, and
+ * the pointer to itself is returned.
+ *
+ * As the SetFind calls exit one by one, the pointer to the top-most root node
+ * bubbles its way down the call stack.
  */
 DisjointSet * SetFind(DisjointSet * set)
 {
@@ -297,13 +308,11 @@ void SetMerge(DisjointSet * setA, DisjointSet * setB)
 	// That way, the smaller set is attached to larger
 	rootA->parent = rootB;
 
-	// Update their ranks
 	if (rootA->rank == rootB->rank)
 	{
 		rootB->rank = rootA->rank + 1;
 	}
 
-	// Combine the gold count and update the new root
 	rootB->goldCount += rootA->goldCount;
 }
 
@@ -384,10 +393,11 @@ void IntSwap(int * a, int * b)
 
 /*
  * Sorts the input array of size `size` in place.
+ * The array after the function exits will be ordered smallest to largest.
  *
  * Implementation: recursive quick sort algorithm.
  * With this partitioning scheme, there are two pointers: left and right.
- * A pivot point is chosen as the rightmost element.
+ * A pivot value is chosen as the middle element's value.
  * The left and right pointers start at the leftmost element and rightmost
  * element respectively, and they slowly sweep towards the middle until
  * they meet.
@@ -402,10 +412,10 @@ void IntSwap(int * a, int * b)
  * the pivot is greater than or equal to the pivot. This procedure is known
  * as "partitioning".
  *
- * Note that this means the pivot is now at the correct location.
- *
- * Note: care is taken to reassign the pivot pointer to the correct
- * position when the pivot number itself is swapped with another number.
+ * Note that this means the pivot is now at the correct location, and that
+ * throughout the process, the pivot value is always inclusively between
+ * the left and right pointers. Thus, when the pointers meet, one of
+ * them will contain the pivot value.
  *
  * Once the partitioning is done, the left half and right half of the
  * array is sorted by calling QuickSort recursively.
@@ -418,21 +428,23 @@ void QuickSort(int * array, int size)
 
 	int * left = array;
 	int * right = array + size - 1;
-	int * pivot = right;
+	int pivot = *(right - size / 2);
 
 	// Partition
 	while (1)
 	{
-		while (*left < *pivot && left < right) left++;
-		while (*right > *pivot && left < right) right--;
+		while (*left < pivot) left++;
+		while (*right > pivot) right--;
 		if (left >= right) break;
+
 		IntSwap(left, right);
-		if (pivot == left) pivot = right;
-		else if (pivot == right) pivot = left;
+
+		left++;
+		right--;
 	}
 
-	QuickSort(array, pivot - array);
-	QuickSort(pivot + 1, array + size - (pivot + 1));
+	QuickSort(array, (right + 1) - array);
+	QuickSort(right + 1, array + size - (right + 1));
 }
 
 /*
@@ -444,38 +456,34 @@ void QuickSort(int * array, int size)
  * OR
  * iterates through all non-edge cells and uses IsPure to check.
  *
- * If check passes, the corresponding DisjointSet is initialized
+ * If check passes for a given cell, the corresponding DisjointSet is initialized
  * via the SetInit function.
  */
 void GoldRushInitSets(DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
 		int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
 {
-	printf("\n# INSIDE INIT: sets & %ld\n\n", (long int)sets);
 	switch (bonus)
 	{
-	case 1:
-		for (int r = 0; r < rows; r++)
-		{
-			for (int c = 0; c < cols; c++)
+		case 1:
+			for (int r = 0; r < rows; r++)
 			{
-				if (IsGold(r, c, map))
-					SetInit(&PADGET(sets,r,c));
-				DisjointSet * setA = &PADGET(sets,r,c);
-				DisjointSet * setB = &sets[r][c];
-				printf("# <%8ld>(%2d,%2d)[%8ld, %8d, %8d]{%8ld, %8d, %8d}\n", (long int)setB,r,c,(long int)setA->parent, setA->rank, setA->goldCount, (long int)setB->parent, setB->rank, setB->goldCount);
+				for (int c = 0; c < cols; c++)
+				{
+					if (IsGold(r, c, map))
+						SetInit(&PADGET(sets,r,c));
+				}
 			}
-		}
-		break;
-	case 2:
-		for (int r = 1; r < rows - 1; r++)
-		{
-			for (int c = 1; c < cols - 1; c++)
+			break;
+		case 2:
+			for (int r = 1; r < rows - 1; r++)
 			{
-				if (IsPure(r, c, map))
-					SetInit(&PADGET(sets,r,c));
+				for (int c = 1; c < cols - 1; c++)
+				{
+					if (IsPure(r, c, map))
+						SetInit(&PADGET(sets,r,c));
+				}
 			}
-		}
-		break;
+			break;
 	}
 }
 
@@ -489,6 +497,12 @@ void GoldRushInitSets(DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
  *
  * Note: a terminating zero value is NOT appended to the end of this array.
  *
+ * As non-gold cells are not initialized, they are checked before
+ * calling SetFind (or else null pointers are dereferenced).
+ *
+ * Then, if the root->goldCount is zero, then it implies that the region
+ * has been visited before, and so the iteration is skipped.
+ *
  * Returns the number of regions.
  */
 int ExtractRegions(int * results, DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
@@ -499,11 +513,15 @@ int ExtractRegions(int * results, DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
 	{
 		for (int c = 0; c < cols; c++)
 		{
-			DisjointSet * root = SetFind(&PADGET(sets,r,c));
+			DisjointSet * node = &PADGET(sets,r,c);
+			if (!node->goldCount) continue;
+
+			DisjointSet * root = SetFind(node);
 			if (!root->goldCount) continue;
-			root->goldCount = 0;
 
 			results[regionCount] = root->goldCount;
+			root->goldCount = 0;
+
 			regionCount++;
 		}
 	}
@@ -537,7 +555,9 @@ int ExtractRegions(int * results, DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
  *     of each region (i.e. the topmost root node of the tree).
  * (4) Each region's gold count is extracted into the results array.
  * (5) The results array is sorted using quick sort algorithm.
- * (6) A terminating zero value is appended to the results array.
+ * (6) As quicksort leaves the results array arranged smallest to largest,
+ *     the array is then reversed to arrange it largest to smallest.
+ * (7) A terminating zero value is appended to the results array.
  */
 void GoldRush12(int * results, int rows, int cols,
 		int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
@@ -550,12 +570,24 @@ void GoldRush12(int * results, int rows, int cols,
 
 	int regionCount = ExtractRegions(results, sets, rows, cols);
 	QuickSort(results, regionCount);
+
+	for (int i = 0; i < regionCount / 2; i++)
+	{
+		IntSwap(&results[i], &results[regionCount-i-1]);
+	}
+
 	results[regionCount] = 0;
 }
 
 
 
+
+
+
 /* REQUIRED FUNCTIONS */
+
+
+
 
 
 
@@ -590,6 +622,7 @@ int DivisorOfThree(int a, int b, int c)
  * Computes the average sheep count per hour given an array of
  * sheep counts at every given hour. Error values of (-1) are ignored.
  * The array is expected to terminate with the value SHEEP_TERMINATOR = 9999.
+ * If there are no valid data, 0.0 is returned.
  *
  * Implementation:
  * A running sum and running count of the non-error values are stored,
@@ -599,7 +632,7 @@ int DivisorOfThree(int a, int b, int c)
  */
 double AverageSheep(int * counts)
 {
-	double sum = 0.0;
+	unsigned long sum = 0;
 	int validCount = 0;
 	while (*counts != SHEEP_TERMINATOR)
 	{
@@ -610,7 +643,8 @@ double AverageSheep(int * counts)
 		}
 		counts++;
 	}
-	return sum / validCount;
+	if (!validCount) return 0.0;
+	return (double)sum / validCount;
 }
 
 /*
@@ -690,7 +724,8 @@ void Emphasise(char * word)
  * n is divided by p.
  *
  * Note: Prime number testing is not necessary, as each factor p consumes
- * all multiples of itself. Prime number testing will not provide any
+ * all multiples of itself. Thus, n will not be divisible by any
+ * composite number. Prime number testing will not provide any
  * performance gain.
  */
 int PrimeFactors(int n, int * factors)
@@ -740,42 +775,16 @@ void ConnectTwo(int maze[MAZE_SIZE][MAZE_SIZE])
 
 	int r = r1 + Signum(r2 - r1);
 	int c = c1 + Signum(c2 - c1);
-	while (r != r2 && c != c2)
+	while (r != r2 || c != c2)
 	{
 		maze[r][c] = 3;
 		r += Signum(r2 - r);
 		c += Signum(c2 - c);
 	}
-	/*
-	int directionRow = Signum(r2 - r1);
-	int directionCol = Signum(c2 - c1);
-
-	int r = r1;
-	int c = c1;
-
-	while (r + directionRow != r2 && c + directionCol != c2)
-	{
-		r += directionRow;
-		c += directionCol;
-		maze[r][c] = 3;
-	}
-
-	r += directionRow;
-	c += directionCol;
-	directionRow = Signum(r2 - r);
-	directionCol = Signum(c2 - c);
-
-	while (r != r2 || c != c2)
-	{
-		maze[r][c] = 3;
-		r += directionRow;
-		c += directionCol;
-	}
-	*/
 }
 
 /*
- * TASK SIX. THE WOLF OF WALL STREET
+ * TASK 6. THE WOLF OF WALL STREET
  *
  * Finds the longest sequence of strictly increasing integers in the prices
  * array. The resulting length and starting position of this sequence is
@@ -801,7 +810,7 @@ void ConnectTwo(int maze[MAZE_SIZE][MAZE_SIZE])
  */
 void DayTrader(int * prices, int numPrices, int * bestRun, int * bestRunIndex)
 {
-	*bestRun = 0;
+	*bestRun = -1;
 	int currentRunIndex = 0;
 	for (int i = 1; i <= numPrices; i++)
 	{
@@ -832,7 +841,7 @@ void DayTrader(int * prices, int numPrices, int * bestRun, int * bestRunIndex)
  * Implementation:
  * Iterating through the array from left to right until the terminator
  * is found, the current integer value is stored and the input pointer
- * advnaces until the integer value no longer equals the first integer.
+ * advances until the integer value no longer equals the original integer.
  *
  * The repeat count is calculated using pointer arithmetic.
  */
@@ -872,7 +881,7 @@ void Compress(int * input, int * output)
  *        carry.
  *	    - If the output digit exceeds '9',
  *	      carry for the next digit is set to 1,
- *	      and 10 is subtracted from the "overflowing" output digit.
+ *	      and 10 is subtracted away from the "overflowing" output digit.
  * (5) String null terminator character is appended on.
  */
 void AddOne(char * input, char * output)
@@ -897,7 +906,6 @@ void AddOne(char * input, char * output)
 	}
 
 	char carry = 1;
-	//input[digitCount - 1]++;
 	for (int i = digitCount - 1; i >= 0; i--)
 	{
 		output[i] = input[i] + carry;
@@ -922,23 +930,24 @@ void AddOne(char * input, char * output)
  *   ********   - Border
  *   *    X *   - No newlines at the end
  *   *X   X *   - No additional spaces than required
- *   *X X X *   
- *   *XXX XX*   
- *   ********   
+ *   *X X X *
+ *   *XXX XX*
+ *   ********
  *
  * Implementation:
  * The largest value is calculated for the values array. This determines
- * how high the histogram is and is necessary to determine what height value
- * each row corresponds to.
+ * how high the histogram is and is a necessary piece of information used
+ * to determine what height value each row corresponds to.
  *
  * The borders for the top and bottom row is generated using the CharRepeat
  * helper function.
  *
- * For the inner rows that represent data, each column is checked to see
- * if there should be an 'X' there, in which case an 'X' is appended on.
+ * Each 'data' row is then iterated through:
+ * Each column is checked to see if there should be an 'X' there,
+ * in which case an 'X' is appended on.
  * Else, a space is appended on.
  *
- * Because the histogram bars extend from a height of 1 to the height
+ * Because all histogram bars extend from (height=1) to the height
  * of the corresponding frequency value, whenever the frequency value is at
  * above the current height, an 'X' should be inserted.
  */

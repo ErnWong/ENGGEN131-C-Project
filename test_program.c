@@ -6,13 +6,16 @@
 
 int testPlan = 0;
 int testSuccess = 0;
+int testFailure = 0;
 int testTotalPlanned = 0;
 int testTotalSuccess = 0;
+int testTotalFailure = 0;
 
 void TestPlan(int count)
 {
 	testPlan = count;
 	testSuccess = 0;
+	testFailure = 0;
 	printf("\n1..%d\n", count);
 }
 
@@ -25,6 +28,7 @@ void TestEnd(void)
 	}
 	testTotalPlanned += testPlan;
 	testTotalSuccess += testSuccess;
+	testTotalFailure += testFailure;
 }
 
 int TestOk(int testNumber, char * message, int condition)
@@ -32,6 +36,7 @@ int TestOk(int testNumber, char * message, int condition)
 	if (condition) printf("ok %d", testNumber);
 	else printf("not ok %d", testNumber);
 	printf(" - %s\n", message);
+	testFailure += !condition;
 	testSuccess += !!condition;
 	return condition;
 }
@@ -48,6 +53,42 @@ int TestEqualsInt(int testNumber, char * message, int actual, int desired)
 	{
 		printf("not ok %d - %s\n", testNumber, message);
 		printf("# expcted %d, but got %d\n", desired, actual);
+		testFailure++;
+	}
+	return condition;
+}
+
+int TestEqualsDouble(int testNumber, char * message, double actual, double desired)
+{
+	double error = actual - desired;
+	int condition = error <= 0.000001 && error >= -0.000001;
+	if (condition)
+	{
+		printf("ok %d - %s\n", testNumber, message);
+		testSuccess++;
+	}
+	else
+	{
+		printf("not ok %d - %s\n", testNumber, message);
+		printf("# expcted %f, but got %f\n", desired, actual);
+		testFailure++;
+	}
+	return condition;
+}
+
+int TestEqualsString(int testNumber, char * message, char * actual, char * desired)
+{
+	int condition = strcmp(actual, desired) == 0;
+	if (condition)
+	{
+		printf("ok %d - %s\n", testNumber, message);
+		testSuccess++;
+	}
+	else
+	{
+		printf("not ok %d - %s\n", testNumber, message);
+		printf("# expcted \"%s\", but got \"%s\"\n", desired, actual);
+		testFailure++;
 	}
 	return condition;
 }
@@ -364,10 +405,6 @@ void TestIsPure(void)
 	TestEnd();
 }
 
-void TestGoldRush0(void)
-{
-}
-
 void TestDisjointSet(void)
 {
 	printf("\n# DisjointSet Functions\n");
@@ -486,6 +523,16 @@ void ResetMap(int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
 		}
 	}
 }
+void FillMap(int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int value)
+{
+	for (int r = 0; r < rows; r++)
+	{
+		for (int c = 0; c < cols; c++)
+		{
+			map[r][c] = value;
+		}
+	}
+}
 
 void VisualiseSets(int rows, int cols, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 {
@@ -530,7 +577,7 @@ int TestSetConnections(int info[][5], DisjointSet sets[PADDED_SIZE][PADDED_SIZE]
 void TestConnectCell(void)
 {
 	printf("\n# ConnectCell and GoldRushInitSets\n");
-	TestPlan(5);
+	TestPlan(9);
 
 	int map[MAX_MAP_SIZE][MAX_MAP_SIZE] =
 	{
@@ -552,14 +599,8 @@ void TestConnectCell(void)
 		{9,0,0,0,0,0,2,2,0,0,0,0,0,0,0}  // 14
 	};
 	DisjointSet sets[PADDED_SIZE][PADDED_SIZE] = { 0 };
-	printf("\n# Before Init: sets @ %ld\n\n", (long int)sets);
-	VisualiseSets(16,16,sets);
 	GoldRushInitSets(sets, 15, 15, map, 1);
-	printf("\n# After Init:\n\n");
-	VisualiseSets(16,16,sets);
 	ConnectAllCells(15, 15, sets);
-	printf("\n# After ConnectAllCells:\n\n");
-	VisualiseSets(16,16,sets);
 
 	int info1[][5] =
 	{
@@ -640,7 +681,6 @@ void TestConnectCell(void)
 				&& PADGET(sets,r,c).parent == 0
 				&& PADGET(sets,r,c).rank == 0
 				&& PADGET(sets,r,c).goldCount == 0;
-				//&& PADGET(sets,r,c).seen == 0;
 		}
 	}
 	ResetSets(sets);
@@ -654,24 +694,31 @@ void TestConnectCell(void)
 				&& PADGET(sets,r,c).parent == 0
 				&& PADGET(sets,r,c).rank == 0
 				&& PADGET(sets,r,c).goldCount == 0;
-				//&& PADGET(sets,r,c).seen == 0;
 		}
 	}
-	TestOk(3, "Empty map should leave sets all zeros\n", pass);
+	TestOk(3, "Empty map should leave sets all zeros", pass);
 
-	int mapFull[MAX_MAP_SIZE][MAX_MAP_SIZE] =
-	{
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD },
-		{ GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD, GOLD }
-	};
+	ResetMap(map);
 	ResetSets(sets);
-	GoldRushInitSets(sets, 8, 8, mapFull, 1);
+	GoldRushInitSets(sets, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 2);
+	ConnectAllCells(MAX_MAP_SIZE, MAX_MAP_SIZE, sets);
+	pass = 1;
+	for (int r = 0; r < MAX_MAP_SIZE; r++)
+	{
+		for (int c = 0; c < MAX_MAP_SIZE; c++)
+		{
+			pass &= 1
+				&& PADGET(sets,r,c).parent == 0
+				&& PADGET(sets,r,c).rank == 0
+				&& PADGET(sets,r,c).goldCount == 0;
+		}
+	}
+	TestOk(4, "Empty map should leave sets all zeros (LARGE input)", pass);
+
+	ResetMap(map);
+	FillMap(8, 8, map, GOLD);
+	ResetSets(sets);
+	GoldRushInitSets(sets, 8, 8, map, 1);
 	ConnectAllCells(8, 8, sets);
 	pass = 1;
 	for (int r = 0; r < 8; r++)
@@ -687,9 +734,10 @@ void TestConnectCell(void)
 			}
 		}
 	}
-	TestOk(4, "Full map should join everything up - Bonus 1\n", pass);
+	TestOk(5, "Full map should join everything up - Bonus 1", pass);
+
 	ResetSets(sets);
-	GoldRushInitSets(sets, 8, 8, mapFull, 2);
+	GoldRushInitSets(sets, 8, 8, map, 2);
 	ConnectAllCells(8, 8, sets);
 	pass = 1;
 	for (int r = 1; r < 8 - 1; r++)
@@ -705,7 +753,1007 @@ void TestConnectCell(void)
 			}
 		}
 	}
-	TestOk(5, "Full map should join non-outer cells up - Bonus 2\n", pass);
+	TestOk(6, "Full map should join non-outer cells up - Bonus 2", pass);
+
+	ResetMap(map);
+	FillMap(MAX_MAP_SIZE, MAX_MAP_SIZE, map, GOLD);
+	ResetSets(sets);
+	GoldRushInitSets(sets, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 1);
+	ConnectAllCells(MAX_MAP_SIZE, MAX_MAP_SIZE, sets);
+	pass = 1;
+	for (int r = 0; r < MAX_MAP_SIZE; r++)
+	{
+		for (int c = 0; c < MAX_MAP_SIZE; c++)
+		{
+			DisjointSet * resultA = SetFind(&PADGET(sets,r,c));
+			DisjointSet * resultB = SetFind(&PADGET(sets,0,0));
+			if (resultA != resultB)
+			{
+				pass = 0;
+				printf("# Incorrect: (%d %d)[%ld] should be [%ld]\n", r, c, (long int)resultA, (long int)resultB);
+			}
+		}
+	}
+	TestOk(7, "Full map should join everything up - Bonus 1 Large", pass);
+
+	ResetSets(sets);
+	GoldRushInitSets(sets, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 2);
+	ConnectAllCells(MAX_MAP_SIZE, MAX_MAP_SIZE, sets);
+	pass = 1;
+	for (int r = 1; r < MAX_MAP_SIZE - 1; r++)
+	{
+		for (int c = 1; c < MAX_MAP_SIZE - 1; c++)
+		{
+			DisjointSet * resultA = SetFind(&PADGET(sets,r,c));
+			DisjointSet * resultB = SetFind(&PADGET(sets,1,1));
+			if (resultA != resultB)
+			{
+				pass = 0;
+				printf("# Incorrect: (%d %d)[%ld] should be [%ld]\n", r, c, (long int)resultA, (long int)resultB);
+			}
+		}
+	}
+	TestOk(8, "Full map should join non-outer cells up - Bonus 2 Large", pass);
+
+	int mapSpecial[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		//   0     1     2     3     4     5     6     7
+		{    0,    0, GOLD,    0,    0,    0,    0,    0 }, // 0
+		{    0,    0, GOLD,    0,    0,    0, GOLD,    0 }, // 1
+		{    0, GOLD,    0, GOLD,    0,    0, GOLD,    0 }, // 2
+		{    0, GOLD,    0,    0, GOLD,    0,    0, GOLD }, // 3
+		{ GOLD,    0,    0,    0, GOLD, GOLD, GOLD,    0 }, // 4
+		{ GOLD,    0, GOLD,    0, GOLD,    0,    0,    0 }, // 5
+		{ GOLD,    0,    0,    0, GOLD,    0,    0,    0 }, // 6
+		{    0, GOLD, GOLD, GOLD,    0,    0,    0,    0 }  // 7
+	};
+	ResetSets(sets);
+	GoldRushInitSets(sets, 8, 8, mapSpecial, 1);
+	ConnectAllCells(8, 8, sets);
+	int info3[][5] =
+	{
+		{ 0, 2, 1, 6, 1 },
+		{ 0, 2, 5, 0, 1 },
+		{ 0, 2, 7, 2, 1 },
+		{ 0, 2, 5, 2, 0 },
+		{ -1 }
+	};
+	TestOk(9, "Special 1 situation - bonus 1", TestSetConnections(info3, sets));
+
+	TestEnd();
+}
+
+void TestQuickSort()
+{
+	printf("\n# QuickSort\n");
+	TestPlan(4);
+
+	int pass;
+
+	int in4a[4] = { 1, 2, 3, 4 };
+	QuickSort(in4a, 4);
+	pass = 1
+		&& in4a[0] == 1
+		&& in4a[1] == 2
+		&& in4a[2] == 3
+		&& in4a[3] == 4;
+	TestOk(1, "Sorted array should stay sorted", pass);
+
+	int in6[6] = { 0 };
+	int out6[6] = { 0 };
+	pass = 1;
+	for (int i = 0; i < 1000000; i++)
+	{
+		//printf("# %d\n", i);
+		int x = i;
+		out6[0] = in6[0] = x % 10; x /= 10;
+		out6[1] = in6[1] = x % 10; x /= 10;
+		out6[2] = in6[2] = x % 10; x /= 10;
+		out6[3] = in6[3] = x % 10; x /= 10;
+		out6[4] = in6[4] = x % 10; x /= 10;
+		out6[5] = in6[5] = x % 10; x /= 10;
+		QuickSort(out6, 6);
+		for (int j = 0; j < 5; j++)
+		{
+			if (out6[j] > out6[j+1])
+			{
+				pass = 0;
+				printf("# Incorrect - [%d,%d,%d,%d,%d,%d] sorted became [%d,%d,%d,%d,%d,%d]\n", in6[0], in6[1], in6[2], in6[3], in6[4], in6[5], out6[0], out6[1], out6[2], out6[3], out6[4], out6[5]);
+				break;
+			}
+		}
+	}
+	TestOk(2, "Brute force array of 6 integers", pass);
+
+	int in5[5] = { 0 };
+	int out5[5] = { 0 };
+	pass = 1;
+	for (int i = 0; i < 100000; i++)
+	{
+		//printf("# %d\n", i);
+		int x = i;
+		out5[0] = in5[0] = x % 10; x /= 10;
+		out5[1] = in5[1] = x % 10; x /= 10;
+		out5[2] = in5[2] = x % 10; x /= 10;
+		out5[3] = in5[3] = x % 10; x /= 10;
+		out5[4] = in5[4] = x % 10; x /= 10;
+		QuickSort(out5, 5);
+		for (int j = 0; j < 4; j++)
+		{
+			if (out5[j] > out5[j+1])
+			{
+				pass = 0;
+				printf("# Incorrect - [%d,%d,%d,%d,%d] sorted became [%d,%d,%d,%d,%d]\n", in5[0], in5[1], in5[2], in5[3], in5[4], out5[0], out5[1], out5[2], out5[3], out5[4]);
+				break;
+			}
+		}
+	}
+	TestOk(3, "Brute force array of 5 integers", pass);
+
+	int in10[10] = { 1, 9, 4, 5, 6, 3, 8, 2, 4, 9 };
+	QuickSort(in10, 10);
+	pass = 1
+		&& in10[0] == 1
+		&& in10[1] == 2
+		&& in10[2] == 3
+		&& in10[3] == 4
+		&& in10[4] == 4
+		&& in10[5] == 5
+		&& in10[6] == 6
+		&& in10[7] == 8
+		&& in10[8] == 9
+		&& in10[9] == 9;
+	TestOk(4, "Hard coded array of 10 integers", pass);
+
+	TestEnd();
+}
+
+int CompareGoldResults(int a[MAX_ARRAY_SIZE], int b[MAX_ARRAY_SIZE])
+{
+	for (int i = 0; b[i - 1]; i++)
+	{
+		if (a[i] != b[i]) return 0;
+	}
+	return 1;
+}
+
+void TestGoldRush12(void)
+{
+	printf("\n# BONUS TASK. GOLD RUSH\n");
+	TestPlan(13);
+
+	int results[MAX_ARRAY_SIZE];
+
+	int map[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+	//   0 1 2 3 4 5 6 7 8 9 1011121314
+		{1,2,2,0,0,0,0,0,0,0,0,0,0,0,0}, //  0
+		{0,4,3,0,0,0,0,9,9,8,0,0,0,0,0}, //  1
+		{0,2,0,3,3,0,0,9,9,0,0,0,0,0,0}, //  2
+		{0,0,0,0,0,4,6,9,9,6,0,0,0,0,0}, //  3
+		{0,0,0,0,0,0,9,0,8,0,0,6,0,0,0}, //  4
+		{0,0,9,9,9,9,0,0,0,0,7,7,8,8,0}, //  5
+		{0,0,9,9,9,9,0,0,0,0,0,7,0,0,0}, //  6
+		{0,0,9,9,9,9,0,1,1,1,2,2,2,2,2}, //  7
+		{0,0,0,9,9,0,0,0,0,0,0,0,0,3,0}, //  8
+		{0,0,0,4,4,0,0,0,0,0,0,0,5,6,0}, //  9
+		{0,0,0,0,9,9,9,0,0,9,0,0,0,5,0}, // 10
+		{0,0,1,2,9,9,9,0,0,0,9,0,0,4,2}, // 11
+		{0,0,0,0,9,9,9,0,0,0,9,9,9,0,0}, // 12
+		{9,9,0,0,0,0,1,0,0,0,0,9,0,0,0}, // 13
+		{9,0,0,0,0,0,2,2,0,0,0,0,0,0,0}  // 14
+	};
+	int out1[MAX_ARRAY_SIZE] = { 21, 9, 6, 3, 0 };
+	GoldRush(results, 15, 15, map, 1);
+	TestOk(1, "Project Sheet Example - bonus 1", CompareGoldResults(results, out1));
+
+	int out2[MAX_ARRAY_SIZE] = { 2, 1, 0 };
+	GoldRush(results, 15, 15, map, 2);
+	TestOk(2, "Project Sheet Example - bonus 2", CompareGoldResults(results, out2));
+
+	ResetMap(map);
+	GoldRush(results, 15, 15, map, 1);
+	TestOk(3, "Empty map - bonus 1", results[0] == 0);
+
+	ResetMap(map);
+	GoldRush(results, 15, 15, map, 2);
+	TestOk(4, "Empty map - bonus 2", results[0] == 0);
+
+	ResetMap(map);
+	FillMap(MAX_MAP_SIZE, MAX_MAP_SIZE, map, GOLD);
+	GoldRush(results, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 1);
+	TestOk(5, "Full map - bonus 1", results[0] == MAX_MAP_SIZE * MAX_MAP_SIZE && results[1] == 0);
+
+	ResetMap(map);
+	FillMap(MAX_MAP_SIZE, MAX_MAP_SIZE, map, GOLD);
+	GoldRush(results, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 2);
+	TestOk(6, "Full map - bonus 2", results[0] == (MAX_MAP_SIZE - 2) * (MAX_MAP_SIZE - 2) && results[1] == 0);
+
+	int mapSpecial[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		//   0     1     2     3     4     5     6     7
+		{    0,    0, GOLD,    0,    0,    0,    0,    0 }, // 0
+		{    0,    0, GOLD,    0,    0,    0, GOLD,    0 }, // 1
+		{    0, GOLD,    0, GOLD,    0,    0, GOLD,    0 }, // 2
+		{    0, GOLD,    0,    0, GOLD,    0,    0, GOLD }, // 3
+		{ GOLD,    0,    0,    0, GOLD, GOLD, GOLD,    0 }, // 4
+		{ GOLD,    0, GOLD,    0, GOLD,    0,    0,    0 }, // 5
+		{ GOLD,    0,    0,    0, GOLD,    0,    0,    0 }, // 6
+		{    0, GOLD, GOLD, GOLD,    0,    0,    0,    0 }  // 7
+	};
+	int outSpecial[MAX_ARRAY_SIZE] = { 20, 1, 0 };
+	GoldRush(results, 8, 8, mapSpecial, 1);
+	TestOk(7, "Special 1 situation - bonus 1", CompareGoldResults(results, outSpecial));
+
+	int mapSmall[MAX_MAP_SIZE][MAX_MAP_SIZE] = { 0 };
+	int pass = 1;
+	for (int i = 0; i < 16; i++)
+	{
+		mapSmall[0][0] = GOLD * !!(i & (1 << 0));
+		mapSmall[0][1] = GOLD * !!(i & (1 << 1));
+		mapSmall[1][0] = GOLD * !!(i & (1 << 2));
+		mapSmall[1][1] = GOLD * !!(i & (1 << 3));
+
+		int goldCount = 0
+			+ mapSmall[0][0]
+			+ mapSmall[0][1]
+			+ mapSmall[1][0]
+			+ mapSmall[1][1];
+		goldCount /= GOLD;
+
+		GoldRush(results, 2, 2, mapSmall, 1);
+		if (results[0] != goldCount || (goldCount && results[1]))
+		{
+			printf("# Incorrect - %d results = [%d, %d]\n", i, results[0], results[1]);
+			pass = 0;
+		}
+	}
+	TestOk(8, "Brute force small - bonus 1", pass);
+
+	int map2[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		{ 9, 9, 9 },
+		{ 9, 9, 9 },
+		{ 9, 9, 9 }
+	};
+	GoldRush(results, 3, 3, map2, 1);
+	TestOk(9, "Example 2 - bonus 1", results[0] == 9 && results[1] == 0);
+
+	GoldRush(results, 3, 3, map2, 2);
+	TestOk(10, "Example 2 - bonus 2", results[0] == 1 && results[1] == 0);
+
+	int map3[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		{9, 9, 9},
+		{9, 9, 9},
+		{9, 9, 8}
+	};
+	GoldRush(results, 3, 3, map3, 1);
+	TestOk(11, "Example 3 - bonus 1", results[0] == 8 && results[1] == 0);
+
+	GoldRush(results, 3, 3, map3, 2);
+	TestOk(12, "Example 3 - bonus 2", results[0] == 0);
+
+	int map4[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		{ 9, 0, 9, 9 },
+		{ 0, 0, 0, 9 },
+		{ 9, 9, 0, 0 }
+	};
+	int out4[MAX_ARRAY_SIZE] = { 3, 2, 1 };
+	GoldRush(results, 3, 4, map4, 1);
+	TestOk(13, "Odd number of results - Bonus 1", CompareGoldResults(results, out4));
+
+	TestEnd();
+}
+
+void TestGoldRush0(void)
+{
+	printf("\n# TASK 10. GOLD RUSH\n");
+	TestPlan(7);
+
+	int results[MAX_ARRAY_SIZE];
+
+	int map[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+	//   0 1 2 3 4 5 6 7 8 9 1011121314
+		{1,2,2,0,0,0,0,0,0,0,0,0,0,0,0}, //  0
+		{0,4,3,0,0,0,0,9,9,8,0,0,0,0,0}, //  1
+		{0,2,0,3,3,0,0,9,9,0,0,0,0,0,0}, //  2
+		{0,0,0,0,0,4,6,9,9,6,0,0,0,0,0}, //  3
+		{0,0,0,0,0,0,9,0,8,0,0,6,0,0,0}, //  4
+		{0,0,9,9,9,9,0,0,0,0,7,7,8,8,0}, //  5
+		{0,0,9,9,9,9,0,0,0,0,0,7,0,0,0}, //  6
+		{0,0,9,9,9,9,0,1,1,1,2,2,2,2,2}, //  7
+		{0,0,0,9,9,0,0,0,0,0,0,0,0,3,0}, //  8
+		{0,0,0,4,4,0,0,0,0,0,0,0,5,6,0}, //  9
+		{0,0,0,0,9,9,9,0,0,9,0,0,0,5,0}, // 10
+		{0,0,1,2,9,9,9,0,0,0,9,0,0,4,2}, // 11
+		{0,0,0,0,9,9,9,0,0,0,9,9,9,0,0}, // 12
+		{9,9,0,0,0,0,1,0,0,0,0,9,0,0,0}, // 13
+		{9,0,0,0,0,0,2,2,0,0,0,0,0,0,0}  // 14
+	};
+	GoldRush(results, 15, 15, map, 0);
+	TestOk(1, "Project Sheet Example", results[0] == 39 && results[1] == 3);
+
+	ResetMap(map);
+	GoldRush(results, 15, 15, map, 0);
+	TestOk(2, "Empty map", results[0] == 0 && results[1] == 0);
+
+	ResetMap(map);
+	FillMap(MAX_MAP_SIZE, MAX_MAP_SIZE, map, GOLD);
+	GoldRush(results, MAX_MAP_SIZE, MAX_MAP_SIZE, map, 0);
+	TestOk(3, "Full map", results[0] == MAX_MAP_SIZE * MAX_MAP_SIZE && results[1] == (MAX_MAP_SIZE - 2) * (MAX_MAP_SIZE - 2));
+
+	int mapSpecial[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		//   0     1     2     3     4     5     6     7
+		{    0,    0, GOLD,    0,    0,    0,    0,    0 }, // 0
+		{    0,    0, GOLD,    0,    0,    0, GOLD,    0 }, // 1
+		{    0, GOLD,    0, GOLD,    0,    0, GOLD,    0 }, // 2
+		{    0, GOLD,    0,    0, GOLD,    0,    0, GOLD }, // 3
+		{ GOLD,    0,    0,    0, GOLD, GOLD, GOLD,    0 }, // 4
+		{ GOLD,    0, GOLD,    0, GOLD,    0,    0,    0 }, // 5
+		{ GOLD,    0,    0,    0, GOLD,    0,    0,    0 }, // 6
+		{    0, GOLD, GOLD, GOLD,    0,    0,    0,    0 }  // 7
+	};
+	GoldRush(results, 8, 8, mapSpecial, 0);
+	TestOk(4, "Special 1 situation", results[0] == 21 && results[1] == 0);
+
+	int mapSmall[MAX_MAP_SIZE][MAX_MAP_SIZE] = { 0 };
+	int pass = 1;
+	for (int i = 0; i < 16; i++)
+	{
+		mapSmall[0][0] = GOLD * !!(i & (1 << 0));
+		mapSmall[0][1] = GOLD * !!(i & (1 << 1));
+		mapSmall[1][0] = GOLD * !!(i & (1 << 2));
+		mapSmall[1][1] = GOLD * !!(i & (1 << 3));
+
+		int goldCount = 0
+			+ mapSmall[0][0]
+			+ mapSmall[0][1]
+			+ mapSmall[1][0]
+			+ mapSmall[1][1];
+		goldCount /= GOLD;
+
+		GoldRush(results, 2, 2, mapSmall, 0);
+		if (results[0] != goldCount || results[1])
+		{
+			printf("# Incorrect - %d results = [%d, %d]\n", i, results[0], results[1]);
+			pass = 0;
+		}
+	}
+	TestOk(5, "Brute force small", pass);
+
+	int map2[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		{ 9, 9, 9 },
+		{ 9, 9, 9 },
+		{ 9, 9, 9 }
+	};
+	GoldRush(results, 3, 3, map2, 0);
+	TestOk(6, "Example 2", results[0] == 9 && results[1] == 1);
+
+	int map3[MAX_MAP_SIZE][MAX_MAP_SIZE] =
+	{
+		{9, 9, 9},
+		{9, 9, 9},
+		{9, 9, 8}
+	};
+	GoldRush(results, 3, 3, map3, 0);
+	TestOk(7, "Example 3", results[0] == 8 && results[1] == 0);
+
+	TestEnd();
+}
+
+void TestDivisorOfThree(void)
+{
+	printf("\n# TASK 1. DIVISOR OF THREE\n");
+	TestPlan(9);
+
+	TestEqualsInt(1, "Example 1 -      1288,     759,     1173", DivisorOfThree(     1288,     759,     1173),      23);
+	TestEqualsInt(2, "Example 2 -       760,    1960,     2720", DivisorOfThree(      760,    1960,     2720),      40);
+	TestEqualsInt(3, "Example 3 -       100,       0,  1000000", DivisorOfThree(      100,       0,  1000000),      -1);
+	TestEqualsInt(4, "Moderate  -     20000,   40000,    20000", DivisorOfThree(    20000,   40000,    20000),   20000);
+	TestEqualsInt(5, "Large 1   - 234788987, 1238634,  9173827", DivisorOfThree(234788987, 1238634,  9173827),       1);
+	TestEqualsInt(6, "Large 2   -    433408, 1234197, 19747152", DivisorOfThree(   433408, 1234197, 19747152),    1693);
+	TestEqualsInt(7, "Smallest  -         1,       1,        1", DivisorOfThree(        1,        1,       1),       1);
+	TestEqualsInt(8, "Range     -         1, INT_MAX,  1000000", DivisorOfThree(        1, INT_MAX,  1000000),       1);
+	TestEqualsInt(9, "MAX       -   INT_MAX, INT_MAX,  INT_MAX", DivisorOfThree(  INT_MAX, INT_MAX,  INT_MAX), INT_MAX);
+
+	TestEnd();
+}
+
+void TestAverageSheep(void)
+{
+	printf("\n# TASK 2. AVERAGE SHEEP\n");
+	TestPlan(5);
+
+	int sheep2[MAX_ARRAY_SIZE] = {-1, 25, 12, 18, -1, 9999};
+	TestEqualsDouble(1, "Example 1", AverageSheep(sheep2), 18.333333);
+
+	int sheep3[MAX_ARRAY_SIZE] = {-1, 22, 9999, -1, 25, 12};
+	TestEqualsDouble(2, "Example 2", AverageSheep(sheep3), 22.0);
+
+	int sheep4[MAX_ARRAY_SIZE] = {-1, -1, 9999, -1, 25, 12};
+	TestEqualsDouble(3, "Example 3", AverageSheep(sheep4), 0.0);
+
+	int sheep5[MAX_ARRAY_SIZE] = { 0 };
+	sheep5[3] = 20;
+	sheep5[5] = 500;
+	sheep5[999] = 9999;
+	TestEqualsDouble(4, "Large", AverageSheep(sheep5), 0.52052052052052052);
+
+	int sheep6[MAX_ARRAY_SIZE] = { 9999 };
+	TestEqualsDouble(5, "9999 at start", AverageSheep(sheep6), 0.0);
+
+	TestEnd();
+}
+
+void TestEmphasise(void)
+{
+	printf("\n# TASK 3. EMPHASISE\n");
+	TestPlan(4);
+
+	char wordsA[MAX_ARRAY_SIZE] = "this is a _good_ question!";
+	Emphasise(wordsA);
+	TestEqualsString(1, "Example 1", wordsA, "this is a GOOD question!");
+
+	char wordsB[MAX_ARRAY_SIZE] = "It is _over 9000_!";
+	Emphasise(wordsB);
+	TestEqualsString(2, "Example 2", wordsB, "It is OVER 9000!");
+
+	char wordsC[MAX_ARRAY_SIZE] = "_Nothing to see here_";
+	Emphasise(wordsC);
+	TestEqualsString(3, "Example 3", wordsC, "NOTHING TO SEE HERE");
+
+	char wordsD[MAX_ARRAY_SIZE] = "__";
+	Emphasise(wordsD);
+	TestEqualsString(4, "Smallest: \"__\"", wordsD, "");
+
+	TestEnd();
+}
+
+void TestPrimeFactors(void)
+{
+	printf("\n# TASK 4. PRIME FACTORS\n");
+	TestPlan(10);
+
+	int factorCount = 0;
+	int factors[MAX_ARRAY_SIZE];
+	int pass;
+
+	factorCount = PrimeFactors(567, factors);
+	pass = factorCount == 5
+		&& factors[0] == 3
+		&& factors[1] == 3
+		&& factors[2] == 3
+		&& factors[3] == 3
+		&& factors[4] == 7;
+	TestOk(1, "Example 1", pass);
+
+	factorCount = PrimeFactors(5678901, factors);
+	pass = factorCount == 4
+		&& factors[0] == 3
+		&& factors[1] == 3
+		&& factors[2] == 17
+		&& factors[3] == 37117;
+	TestOk(2, "Example 2", pass);
+
+	factorCount = PrimeFactors(13, factors);
+	pass = factorCount == 1
+		&& factors[0] == 13;
+	TestOk(3, "Example 3", pass);
+
+	factorCount = PrimeFactors(1 << 30, factors);
+	pass = factorCount == 30;
+	for (int i = 0; i < 30; i++) pass &= factors[i] == 2;
+	TestOk(4, "Highest power of 2", pass);
+
+	factorCount = PrimeFactors(2, factors);
+	pass = factorCount == 1
+		&& factors[0] == 2;
+	TestOk(5, "Smallest number", pass);
+
+	factorCount = PrimeFactors(3, factors);
+	pass = factorCount == 1
+		&& factors[0] == 3;
+	TestOk(6, "Small prime - 3", pass);
+
+	factorCount = PrimeFactors(7, factors);
+	pass = factorCount == 1
+		&& factors[0] == 7;
+	TestOk(7, "Small prime - 7", pass);
+
+	factorCount = PrimeFactors(999983, factors);
+	pass = factorCount == 1
+		&& factors[0] == 999983;
+	TestOk(8, "Large computable prime - largest below 10^6", pass);
+
+	factorCount = PrimeFactors(99999989, factors);
+	pass = factorCount == 1
+		&& factors[0] == 99999989;
+	TestOk(9, "Large computable prime - largest below 10^8", pass);
+
+	factorCount = PrimeFactors(479001600, factors);
+	pass = factorCount == 19
+		&& factors[0] == 2
+		&& factors[1] == 2
+		&& factors[2] == 2
+		&& factors[3] == 2
+		&& factors[4] == 2
+		&& factors[5] == 2
+		&& factors[6] == 2
+		&& factors[7] == 2
+		&& factors[8] == 2
+		&& factors[9] == 2
+		&& factors[10] == 3
+		&& factors[11] == 3
+		&& factors[12] == 3
+		&& factors[13] == 3
+		&& factors[14] == 3
+		&& factors[15] == 5
+		&& factors[16] == 5
+		&& factors[17] == 7
+		&& factors[18] == 11;
+	TestOk(10, "Largest factorial - 12!", pass);
+
+	TestEnd();
+}
+
+int CompareMaze(int a[10][10], int b[10][10])
+{
+	for (int r = 0; r < 10; r++)
+	{
+		for (int c = 0; c < 10; c++)
+		{
+			if (a[r][c] != b[r][c]) return 0;
+		}
+	}
+	return 1;
+}
+
+void TestConnectTwo(void)
+{
+	printf("\n# TASK 5. CONNECT TWO\n");
+	TestPlan(9);
+
+	int in1[10][10] =
+	{
+		{1, 0, 2, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out1[10][10] =
+	{
+		{1, 3, 2, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in1);
+	TestOk(1, "Example 1", CompareMaze(in1, out1));
+
+	int in2[10][10] =
+	{
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out2[10][10] =
+	{
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{3, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{2, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in2);
+	TestOk(2, "Example 2", CompareMaze(in2, out2));
+
+	int in3[10][10] =
+	{
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 2, 0, 0}
+	};
+	int out3[10][10] =
+	{
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 3, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 3, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 3, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 2, 0, 0}
+	};
+	ConnectTwo(in3);
+	TestOk(3, "Example 3", CompareMaze(in3, out3));
+
+	int in4[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 2, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out4[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		{0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 2, 3, 3, 3, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in4);
+	TestOk(4, "Start top right", CompareMaze(in4, out4));
+
+	int in5[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 2, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out5[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 3, 2, 0, 0, 0, 0},
+		{0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+		{0, 0, 3, 0, 0, 0, 0, 0, 0, 0},
+		{0, 3, 0, 0, 0, 0, 0, 0, 0, 0},
+		{1, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in5);
+	TestOk(5, "Start bottom left", CompareMaze(in5, out5));
+
+	int in6[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	};
+	int out6[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	};
+	ConnectTwo(in6);
+	TestOk(6, "Start bottom right", CompareMaze(in6, out6));
+
+	int in7[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 2, 0}
+	};
+	int out7[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 3, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 3, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 3, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 2, 0}
+	};
+	ConnectTwo(in7);
+	TestOk(7, "Diagonal end at bottom", CompareMaze(in7, out7));
+
+	int in8[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out8[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 2},
+		{0, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+		{0, 0, 0, 0, 0, 0, 0, 3, 0, 0},
+		{0, 0, 0, 0, 0, 0, 3, 0, 0, 0},
+		{0, 0, 0, 0, 0, 1, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in8);
+	TestOk(8, "Diagonal end at top right", CompareMaze(in8, out8));
+
+	int in9[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 2, 1, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	int out9[10][10] =
+	{
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 2, 1, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	};
+	ConnectTwo(in9);
+	TestOk(9, "Neighbouring left", CompareMaze(in9, out9));
+
+	TestEnd();
+}
+
+void TestDayTrader()
+{
+	printf("\n# TASK 6. THE WOLF OF WALL STREET\n");
+	TestPlan(9);
+
+	int bestRun, bestRunIndex;
+
+	int pricesA[15] = { 59, 60, 55, 23, 42, 44, 48, 50, 43, 45, 43, 44, 47, 51, 52 };
+	DayTrader(pricesA, 15, &bestRun, &bestRunIndex);
+	TestOk(1, "Example 1", bestRun == 4 && bestRunIndex == 3);
+
+	int pricesB[10] = { 1, 2, 3, 3, 3, 4, 3, 4, 5, 6 };
+	DayTrader(pricesB, 10, &bestRun, &bestRunIndex);
+	TestOk(2, "Example 2", bestRun == 3 && bestRunIndex == 6);
+
+	int pricesC[10] = { 123, 120, 118, 119, 121, 126, 127, 130, 129, 132 };
+	DayTrader(pricesC, 10, &bestRun, &bestRunIndex);
+	TestOk(3, "Example 3", bestRun == 5 && bestRunIndex == 2);
+
+	int pricesD[1] = { 0 };
+	DayTrader(pricesD, 1, &bestRun, &bestRunIndex);
+	TestOk(4, "Smallest", bestRun == 0 && bestRunIndex == 0);
+
+	int pricesE[5] = { 4, 4, 4, 4, 4 };
+	DayTrader(pricesE, 5, &bestRun, &bestRunIndex);
+	TestOk(5, "All equal", bestRun == 0 && bestRunIndex == 0);
+
+	int pricesF[5] = { 5, 4, 3, 2, 1 };
+	DayTrader(pricesF, 5, &bestRun, &bestRunIndex);
+	TestOk(6, "Decreasing", bestRun == 0 && bestRunIndex == 0);
+
+	int pricesG[8] = { 1, 2, 3, 2, 8, 6, 7, 8 };
+	DayTrader(pricesG, 8, &bestRun, &bestRunIndex);
+	TestOk(7, "Two equal sequences - should fetch first occurance", bestRun == 2 && bestRunIndex == 0);
+
+	int pricesH[MAX_ARRAY_SIZE] = { 0 };
+	DayTrader(pricesH, MAX_ARRAY_SIZE, &bestRun, &bestRunIndex);
+	TestOk(8, "MAX_ARRAY_SIZE empty", bestRun == 0 && bestRunIndex == 0);
+	for (int i = 0; i < MAX_ARRAY_SIZE; i++) pricesH[i] = i;
+	DayTrader(pricesH, MAX_ARRAY_SIZE, &bestRun, &bestRunIndex);
+	TestOk(9, "MAX_ARRAY_SIZE sequence", bestRun == MAX_ARRAY_SIZE - 1 && bestRunIndex == 0);
+
+	TestEnd();
+}
+
+int CompareCompressed(int a[MAX_ARRAY_SIZE], int b[MAX_ARRAY_SIZE])
+{
+	for (int i = 0; b[i - 1] != -1; i++)
+	{
+		if (a[i] != b[i]) return 0;
+	}
+	return 1;
+}
+
+void TestCompress(void)
+{
+	printf("\n# TASK 7. COMPRESSION\n");
+	TestPlan(6);
+
+	int output[MAX_ARRAY_SIZE];
+
+	int inputB[MAX_ARRAY_SIZE] =  { 1, 1, 2, 2, -1 };
+	int outputB[MAX_ARRAY_SIZE] = { 2, 1, 2, 2, -1 };
+	Compress(inputB, output);
+	TestOk(1, "Example 1", CompareCompressed(output, outputB));
+
+	int inputC[MAX_ARRAY_SIZE] =  { 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, -1};
+	int outputC[MAX_ARRAY_SIZE] = { 10, 7, -1 };
+	Compress(inputC, output);
+	TestOk(2, "Example 2", CompareCompressed(output, outputC));
+
+	int inputD[MAX_ARRAY_SIZE] =  { 4, 7, 7, 7, -1 };
+	int outputD[MAX_ARRAY_SIZE] = { 1, 4, 3, 7, -1 };
+	Compress(inputD, output);
+	TestOk(3, "Example 3", CompareCompressed(output, outputD));
+
+	int inputE[MAX_ARRAY_SIZE] = { 1, -1 };
+	int outputE[MAX_ARRAY_SIZE] = { 1, 1, -1 };
+	Compress(inputE, output);
+	TestOk(4, "Smallest input", CompareCompressed(output, outputE));
+
+	int inputF[MAX_ARRAY_SIZE] = { 1, 1, 1 };
+	inputF[MAX_ARRAY_SIZE - 1] = -1;
+	int outputF[MAX_ARRAY_SIZE] = { 3, 1, MAX_ARRAY_SIZE - 4, 0, -1 };
+	Compress(inputF, output);
+	TestOk(5, "Largest input", CompareCompressed(output, outputF));
+
+	int inputG[MAX_ARRAY_SIZE] = { 7, 7, 7, 7, 7, 3, 4, 4, 4, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1 };
+	int outputG[MAX_ARRAY_SIZE] = { 5, 7, 1, 3, 3, 4, 1, 7, 12, 0, -1 };
+	Compress(inputG, output);
+	TestOk(6, "Example from project sheet", CompareCompressed(output, outputG));
+
+	TestEnd();
+}
+
+void TestAddOne(void)
+{
+	printf("\n# TASK 8. ARBITRARY INCREMENTING\n");
+	TestPlan(3);
+
+	char output[MAX_ARRAY_SIZE];
+
+	char inA[MAX_ARRAY_SIZE] =   "99999";
+	char outA[MAX_ARRAY_SIZE] = "100000";
+	AddOne(inA, output);
+	TestEqualsString(1, "Example 1", output, outA);
+
+	char inB[MAX_ARRAY_SIZE] =  "12399999999";
+	char outB[MAX_ARRAY_SIZE] = "12400000000";
+	AddOne(inB, output);
+	TestEqualsString(2, "Example 2", output, outB);
+
+	char inC[MAX_ARRAY_SIZE] =   "9";
+	char outC[MAX_ARRAY_SIZE] = "10";
+	AddOne(inC, output);
+	TestEqualsString(3, "Example 3", output, outC);
+
+	TestEnd();
+}
+
+void TestHistogram(void)
+{
+	printf("\n# TASK 9. HISTOGRAM\n");
+	TestPlan(4);
+
+	char out[MAX_ARRAY_SIZE];
+
+	int in1[10] = {1, 0, 3, 1, 2, 4, 5, 6, 2, 2};
+	char out1[MAX_ARRAY_SIZE] =
+		"************\n"
+		"*       X  *\n"
+		"*      XX  *\n"
+		"*     XXX  *\n"
+		"*  X  XXX  *\n"
+		"*  X XXXXXX*\n"
+		"*X XXXXXXXX*\n"
+		"************";
+	Histogram(out, in1, 10);
+	TestEqualsString(1, "Example 1", out, out1);
+
+	int in2[3] = {1, 0, 1};
+	char out2[MAX_ARRAY_SIZE] =
+		"*****\n"
+		"*X X*\n"
+		"*****";
+	Histogram(out, in2, 3);
+	TestEqualsString(2, "Example 2", out, out2);
+
+	int in3[3] = {0, 1, 0};
+	char out3[MAX_ARRAY_SIZE] =
+		"*****\n"
+		"* X *\n"
+		"*****";
+	Histogram(out, in3, 3);
+	TestEqualsString(3, "Example 3", out, out3);
+
+	int in4[1] = { 100 };
+	char out4[MAX_ARRAY_SIZE] = { 0 };
+	out4[0] = out4[1] = out4[2] = '*';
+	out4[3] = '\n';
+	int i;
+	for (i = 1; i <= 100; i++)
+	{
+		out4[4*i+0] = '*';
+		out4[4*i+1] = 'X';
+		out4[4*i+2] = '*';
+		out4[4*i+3] = '\n';
+	}
+	out4[4*i+0] = out4[4*i+1] = out4[4*i+2] = '*';
+	out4[4*i+3] = '\0';
+	Histogram(out, in4, 1);
+	TestEqualsString(4, "Single large number", out, out4);
 
 	TestEnd();
 }
@@ -719,9 +1767,27 @@ int main(void)
 	TestSignum();
 	TestIntMax();
 	TestIsPure();
-	TestGoldRush0();
 	TestDisjointSet();
 	TestConnectCell();
+	TestQuickSort();
 
-	printf("\n# Final Summary: %d of %d tests passed\n", testTotalSuccess, testTotalPlanned);
+	TestDivisorOfThree();
+	TestAverageSheep();
+	TestEmphasise();
+	TestPrimeFactors();
+	TestConnectTwo();
+	TestDayTrader();
+	TestCompress();
+	TestAddOne();
+	TestHistogram();
+
+	TestGoldRush0();
+	TestGoldRush12();
+
+	printf("\n");
+	printf("# Final Summary:\n");
+	printf("# ===============\n");
+	printf("# >  Planned: %d\n", testTotalPlanned);
+	printf("# >   Passed: %d\n", testTotalSuccess);
+	printf("# >   Failed: %d\n", testTotalFailure);
 }
