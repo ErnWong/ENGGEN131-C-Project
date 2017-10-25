@@ -319,7 +319,7 @@ void TestIntMax(void)
 void TestIsPure(void)
 {
 	printf("\n# IsPure\n");
-	TestPlan(4);
+	TestPlan(5);
 
 	int pass = 1;
 	for (int i = 0; i < (1 << 8); i++)
@@ -335,7 +335,7 @@ void TestIsPure(void)
 		map[3][2] = GOLD * !!(i & (1 << 6));
 		map[3][3] = GOLD * !!(i & (1 << 7));
 
-		int result = IsPure(2, 2, map);
+		int result = IsPure(2, 2, 4, 4, map);
 		if (result)
 		{
 			printf("# Incorrect - Subtest mask: %d\n", i);
@@ -358,7 +358,7 @@ void TestIsPure(void)
 		map[3][2] = GOLD * !!(i & (1 << 6));
 		map[3][3] = GOLD * !!(i & (1 << 7));
 
-		int result = IsPure(2, 2, map);
+		int result = IsPure(2, 2, 4, 4, map);
 		if (result)
 		{
 			printf("# Incorrect - Subtest mask: %d\n", i);
@@ -377,7 +377,7 @@ void TestIsPure(void)
 	pureMap[3][1] = GOLD;
 	pureMap[3][2] = GOLD;
 	pureMap[3][3] = GOLD;
-	TestEqualsInt(3, "The only truthy input", IsPure(2, 2, pureMap), 1);
+	TestEqualsInt(3, "The only truthy input", IsPure(2, 2, 4, 4, pureMap), 1);
 
 	pass = 1;
 	for (int i = 0; i < 9; i++)
@@ -393,7 +393,7 @@ void TestIsPure(void)
 		map[3][2] = i;
 		map[3][3] = i;
 
-		int result = IsPure(2, 2, map);
+		int result = IsPure(2, 2, 4, 4, map);
 		if (result)
 		{
 			printf("# Incorrect - Subtest mask: %d\n", i);
@@ -401,6 +401,28 @@ void TestIsPure(void)
 		}
 	}
 	TestOk(4, "Should not return true for non-gold neighbours", pass);
+
+	int fullPureMap[MAX_MAP_SIZE][MAX_MAP_SIZE] = { 0 };
+	fullPureMap[0][0] = GOLD;
+	fullPureMap[0][1] = GOLD;
+	fullPureMap[0][2] = GOLD;
+	fullPureMap[1][0] = GOLD;
+	fullPureMap[1][1] = GOLD;
+	fullPureMap[1][2] = GOLD;
+	fullPureMap[2][0] = GOLD;
+	fullPureMap[2][1] = GOLD;
+	fullPureMap[2][2] = GOLD;
+	pass = 1
+		&& !IsPure(0, 0, 3, 3, fullPureMap)
+		&& !IsPure(0, 1, 3, 3, fullPureMap)
+		&& !IsPure(0, 2, 3, 3, fullPureMap)
+		&& !IsPure(1, 0, 3, 3, fullPureMap)
+		&& !IsPure(1, 2, 3, 3, fullPureMap)
+		&& !IsPure(2, 0, 3, 3, fullPureMap)
+		&& !IsPure(2, 1, 3, 3, fullPureMap)
+		&& !IsPure(2, 2, 3, 3, fullPureMap)
+		&&  IsPure(1, 1, 3, 3, fullPureMap);
+	TestOk(5, "Returns falsy for edges", pass);
 
 	TestEnd();
 }
@@ -509,6 +531,7 @@ void ResetSets(DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 			sets[r][c].parent = NULL;
 			sets[r][c].rank = 0;
 			sets[r][c].goldCount = 0;
+			sets[r][c].isGold = 0;
 		}
 	}
 }
@@ -577,7 +600,7 @@ int TestSetConnections(int info[][5], DisjointSet sets[PADDED_SIZE][PADDED_SIZE]
 void TestConnectCell(void)
 {
 	printf("\n# ConnectCell and GoldRushInitSets\n");
-	TestPlan(9);
+	TestPlan(11);
 
 	int map[MAX_MAP_SIZE][MAX_MAP_SIZE] =
 	{
@@ -820,6 +843,67 @@ void TestConnectCell(void)
 	};
 	TestOk(9, "Special 1 situation - bonus 1", TestSetConnections(info3, sets));
 
+	ResetMap(map);
+	// (3x3 block)---(3x3 block)  (3x3 block)
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			map[r][c] = map[r][c+4] = map[r][c+8] = GOLD;
+		}
+	}
+	map[1][3] = GOLD;
+	ResetSets(sets);
+	GoldRushInitSets(sets, 3, 11, map, 1);
+	ConnectAllCells(3, 11, sets);
+	pass = 1;
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			pass &= SetFind(&PADGET(sets,r,c)) == SetFind(&PADGET(sets,r,c+4));
+			pass &= SetFind(&PADGET(sets,r,c)) != SetFind(&PADGET(sets,r,c+8));
+			pass &= PADGET(sets,r,c).isGold;
+			pass &= PADGET(sets,r,c+4).isGold;
+			pass &= PADGET(sets,r,c+8).isGold;
+			pass &= PADGET(sets,r,c).goldCount;
+			pass &= PADGET(sets,r,c+4).goldCount;
+			pass &= PADGET(sets,r,c+8).goldCount;
+		}
+		pass &= SetFind(&PADGET(sets,r,0)) == SetFind(&PADGET(sets,0,0));
+		pass &= SetFind(&PADGET(sets,r,8)) == SetFind(&PADGET(sets,0,8));
+	}
+	TestOk(10, "Gold region with separate pure gold - Bonus 1", pass);
+
+	ResetSets(sets);
+	GoldRushInitSets(sets, 3, 11, map, 2);
+	pass = 1;
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			int pure = r == 1 && c == 1;
+			pass &= pure == PADGET(sets,r,c).goldCount;
+			pass &= pure == PADGET(sets,r,c+4).goldCount;
+			pass &= pure == PADGET(sets,r,c+8).goldCount;
+		}
+	}
+	ConnectAllCells(3, 11, sets);
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			pass &= SetFind(&PADGET(sets,r,c)) == SetFind(&PADGET(sets,r,c+4));
+			pass &= SetFind(&PADGET(sets,r,c)) != SetFind(&PADGET(sets,r,c+8));
+			pass &= PADGET(sets,r,c).isGold;
+			pass &= PADGET(sets,r,c+4).isGold;
+			pass &= PADGET(sets,r,c+8).isGold;
+		}
+		pass &= SetFind(&PADGET(sets,r,0)) == SetFind(&PADGET(sets,0,0));
+		pass &= SetFind(&PADGET(sets,r,8)) == SetFind(&PADGET(sets,0,8));
+	}
+	TestOk(11, "Gold region with separate pure gold - Bonus 2", pass);
+
 	TestEnd();
 }
 
@@ -920,7 +1004,7 @@ int CompareGoldResults(int a[MAX_ARRAY_SIZE], int b[MAX_ARRAY_SIZE])
 void TestGoldRush12(void)
 {
 	printf("\n# BONUS TASK. GOLD RUSH\n");
-	TestPlan(13);
+	TestPlan(15);
 
 	int results[MAX_ARRAY_SIZE];
 
@@ -1040,9 +1124,26 @@ void TestGoldRush12(void)
 		{ 0, 0, 0, 9 },
 		{ 9, 9, 0, 0 }
 	};
-	int out4[MAX_ARRAY_SIZE] = { 3, 2, 1 };
+	int out4[MAX_ARRAY_SIZE] = { 3, 2, 1, 0 };
 	GoldRush(results, 3, 4, map4, 1);
 	TestOk(13, "Odd number of results - Bonus 1", CompareGoldResults(results, out4));
+
+	ResetMap(map);
+	// (3x3 block)---(3x3 block)  (3x3 block)
+	for (int r = 0; r < 3; r++)
+	{
+		for (int c = 0; c < 3; c++)
+		{
+			map[r][c] = map[r][c+4] = map[r][c+8] = GOLD;
+		}
+	}
+	map[1][3] = GOLD;
+	int out5[MAX_ARRAY_SIZE] = { 19, 9, 0 };
+	GoldRush(results, 3, 11, map, 1);
+	TestOk(14, "Gold regions with separate pure gold - Bonus 1", CompareGoldResults(results, out5));
+	int out6[MAX_ARRAY_SIZE] = { 2, 1, 0 };
+	GoldRush(results, 3, 11, map, 2);
+	TestOk(15, "Gold regions with separate pure gold - Bonus 2", CompareGoldResults(results, out6));
 
 	TestEnd();
 }

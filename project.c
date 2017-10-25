@@ -185,8 +185,10 @@ int IsGold(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
  * return truthy is for all of the 8 neighbouring cells to have
  * the value GOLD.
  */
-int IsPure(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
+int IsPure(int r, int c, int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE])
 {
+	if (r < 1 || r >= rows - 1) return 0;
+	if (c < 1 || c >= cols - 1) return 0;
 	for (int dr = -1; dr <= 1; dr++)
 	{
 		for (int dc = -1; dc <= 1; dc++)
@@ -226,6 +228,7 @@ struct DisjointSet
 	DisjointSet * parent;
 	int rank;
 	int goldCount;
+	int isGold;
 };
 
 /*
@@ -241,13 +244,15 @@ struct DisjointSet
  * duplicate counting. I.e., each region is only added once into the
  * results array.
  */
-void SetInit(DisjointSet * set)
+void SetInit(DisjointSet * set, int isWanted)
 {
 	set->parent = set;
 	set->rank = 0;
 
+	set->isGold = 1;
+
 	// Each set initially represents a single disjoint cell of one gold
-	set->goldCount = 1;
+	set->goldCount = isWanted;
 }
 
 /*
@@ -338,7 +343,7 @@ void SetMerge(DisjointSet * setA, DisjointSet * setB)
  */
 void ConnectCell(int r, int c, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 {
-	if (!PADGET(sets,r,c).goldCount) return;
+	if (!PADGET(sets,r,c).isGold) return;
 
 	for (int dr = -1; dr <= 0; dr++)
 	{
@@ -349,7 +354,7 @@ void ConnectCell(int r, int c, DisjointSet sets[PADDED_SIZE][PADDED_SIZE])
 			int r2 = r + dr;
 			int c2 = c + dc;
 
-			if (PADGET(sets,r2,c2).goldCount)
+			if (PADGET(sets,r2,c2).isGold)
 			{
 				SetMerge(&PADGET(sets,r,c), &PADGET(sets,r2,c2));
 			}
@@ -462,28 +467,16 @@ void QuickSort(int * array, int size)
 void GoldRushInitSets(DisjointSet sets[PADDED_SIZE][PADDED_SIZE],
 		int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE], int bonus)
 {
-	switch (bonus)
+	for (int r = 0; r < rows; r++)
 	{
-		case 1:
-			for (int r = 0; r < rows; r++)
+		for (int c = 0; c < cols; c++)
+		{
+			if (IsGold(r, c, map))
 			{
-				for (int c = 0; c < cols; c++)
-				{
-					if (IsGold(r, c, map))
-						SetInit(&PADGET(sets,r,c));
-				}
+				int isDesired = (bonus == 1) || IsPure(r, c, rows, cols, map);
+				SetInit(&PADGET(sets,r,c), isDesired);
 			}
-			break;
-		case 2:
-			for (int r = 1; r < rows - 1; r++)
-			{
-				for (int c = 1; c < cols - 1; c++)
-				{
-					if (IsPure(r, c, map))
-						SetInit(&PADGET(sets,r,c));
-				}
-			}
-			break;
+		}
 	}
 }
 
@@ -1019,7 +1012,7 @@ void GoldRush(int * results, int rows, int cols,
 	{
 		for (int c = 1; c < cols - 1; c++)
 		{
-			results[1] += IsPure(r, c, map);
+			results[1] += IsPure(r, c, rows, cols, map);
 		}
 	}
 }

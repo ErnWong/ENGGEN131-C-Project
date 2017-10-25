@@ -16,7 +16,7 @@ int Signum(int x);
 int IntMax(int * values, int size);
 char * CharRepeat(char * string, char c, int count);
 int IsGold(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE]);
-int IsPure(int r, int c, int map[MAX_MAP_SIZE][MAX_MAP_SIZE]);
+int IsPure(int r, int c, int rows, int cols, int map[MAX_MAP_SIZE][MAX_MAP_SIZE]);
 void GoldRush0(int * results, int rows, int cols,
 		int map[MAX_MAP_SIZE][MAX_MAP_SIZE]);
 
@@ -27,6 +27,7 @@ struct DisjointSet
 	DisjointSet * parent;
 	int rank;
 	int goldCount;
+	int isGold;
 	//int seen;
 };
 
